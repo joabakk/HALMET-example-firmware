@@ -14,6 +14,7 @@ const float kMeasurementCurrent = 0.01;
 
 // Default fuel tank size, in m3
 const float kTankDefaultSize = 120. / 1000;
+const float kSensorDefaultFactor = 1;
 
 FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115, int channel,
                                  String name) {
@@ -95,3 +96,165 @@ FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115, int channel,
 
   return tank_level;
 }
+
+FloatProducer* ConnectPressureSensor(Adafruit_ADS1115* ads1115, int channel,
+                                 String name) {
+                                   const uint ads_read_delay = 500;  // ms
+
+                                   char config_path[80];
+                                   char sk_path[80];
+                                   char meta_display_name[80];
+                                   char meta_description[80];
+
+                                   snprintf(config_path, sizeof(config_path), "/%s Pressure/resistance",
+                                            name.c_str());
+                                   auto sender_resistance =
+                                       new RepeatSensor<float>(ads_read_delay, [ads1115, channel]() {
+                                         int16_t adc_output = ads1115->readADC_SingleEnded(channel);
+                                         float adc_output_volts = ads1115->computeVolts(adc_output);
+                                         return kAnalogInputScale * adc_output_volts / kMeasurementCurrent;
+                                       });
+
+                                   snprintf(config_path, sizeof(config_path), "/%s Pressure/Resistance SK Path",
+                                            name.c_str());
+                                   snprintf(sk_path, sizeof(sk_path), "propulsion.pressure.%s.senderResistance",
+                                            name.c_str());
+                                   snprintf(meta_display_name, sizeof(meta_display_name), "%s Resistance",
+                                            name.c_str());
+                                   snprintf(meta_description, sizeof(meta_description),
+                                            "Measured %s pressure sender resistance", name.c_str());
+                                   auto sender_resistance_sk_output = new SKOutputFloat(
+                                       sk_path, config_path,
+                                       new SKMetadata("ohm", meta_display_name, meta_description));
+
+                                   snprintf(config_path, sizeof(config_path), "/%s Pressure/Level Curve",
+                                            name.c_str());
+                                   auto pressure_level = (new CurveInterpolator(nullptr, config_path))
+                                                         ->set_input_title("Sender Resistance (ohms)")
+                                                         ->set_output_title("Pressure (Pa)");
+
+                                   if (pressure_level->get_samples().empty()) {
+                                     // If there's no prior configuration, provide a default curve
+                                     pressure_level->clear_samples();
+                                     pressure_level->add_sample(CurveInterpolator::Sample(0, 0));
+                                     pressure_level->add_sample(CurveInterpolator::Sample(180., 500000.));
+                                     pressure_level->add_sample(CurveInterpolator::Sample(300., 1000000.));
+                                   }
+
+                                   snprintf(config_path, sizeof(config_path), "/%s Pressure/Current value SK Path",
+                                            name.c_str());
+                                   snprintf(sk_path, sizeof(sk_path), "propulsion.pressure.%s",
+                                            name.c_str());
+                                   snprintf(meta_display_name, sizeof(meta_display_name), "%s Pressure value",
+                                            name.c_str());
+                                   snprintf(meta_description, sizeof(meta_description), "%s Pressure value",
+                                            name.c_str());
+                                   // auto pressure_level_sk_output = new SKOutputFloat(
+                                   //     sk_path, config_path,
+                                   //     new SKMetadata("Pa", meta_display_name, meta_description));
+
+                                   //snprintf(config_path, sizeof(config_path), "/Pressure %s/Total Volume",
+                                  //           //name.c_str());
+                                  // auto pressure_volume = new Linear(kPressureDefaultSize, 0, config_path);
+
+                                   // snprintf(config_path, sizeof(config_path), "/Pressure %s/SK Path",
+                                   //          name.c_str());
+                                   // snprintf(sk_path, sizeof(sk_path), "propulsion.pressure.%s.currentVolume",
+                                   //          name.c_str());
+                                   // snprintf(meta_display_name, sizeof(meta_display_name), "Tank %s volume",
+                                   //          name.c_str());
+                                   // snprintf(meta_description, sizeof(meta_description),
+                                   //          "Calculated tank %s remaining volume", name.c_str());
+                                   auto pressure_sk_output = new SKOutputFloat(
+                                       sk_path, config_path,
+                                       new SKMetadata("Pa", meta_display_name, meta_description));
+
+                                   // sender_resistance->connect_to(sender_resistance_sk_output);
+
+                                   sender_resistance->connect_to(pressure_level)->connect_to(pressure_sk_output);
+
+                                   // pressure_level->connect_to(pressure_volume)->connect_to(pressure_volume_sk_output);
+
+                                   return pressure_level;
+                                 }
+
+FloatProducer* ConnectTemperatureSensor(Adafruit_ADS1115* ads1115, int channel,
+  String name) {
+    const uint ads_read_delay = 500;  // ms
+
+    char config_path[80];
+    char sk_path[80];
+    char meta_display_name[80];
+    char meta_description[80];
+
+    snprintf(config_path, sizeof(config_path), "/%s Temperature/resistance",
+             name.c_str());
+    auto sender_resistance =
+        new RepeatSensor<float>(ads_read_delay, [ads1115, channel]() {
+          int16_t adc_output = ads1115->readADC_SingleEnded(channel);
+          float adc_output_volts = ads1115->computeVolts(adc_output);
+          return kAnalogInputScale * adc_output_volts / kMeasurementCurrent;
+        });
+
+    snprintf(config_path, sizeof(config_path), "/%s Temperature/Resistance SK Path",
+             name.c_str());
+    snprintf(sk_path, sizeof(sk_path), "propulsion.temperature.%s.senderResistance",
+             name.c_str());
+    snprintf(meta_display_name, sizeof(meta_display_name), "%s Resistance",
+             name.c_str());
+    snprintf(meta_description, sizeof(meta_description),
+             "Measured %s temperature sender resistance", name.c_str());
+    auto sender_resistance_sk_output = new SKOutputFloat(
+        sk_path, config_path,
+        new SKMetadata("ohm", meta_display_name, meta_description));
+
+    snprintf(config_path, sizeof(config_path), "/%s Temperature/Level Curve",
+             name.c_str());
+    auto temperature_level = (new CurveInterpolator(nullptr, config_path))
+                          ->set_input_title("Sender Resistance (ohms)")
+                          ->set_output_title("Temperature (K)");
+
+    if (temperature_level->get_samples().empty()) {
+      // If there's no prior configuration, provide a default curve
+      temperature_level->clear_samples();
+      temperature_level->add_sample(CurveInterpolator::Sample(0, 0));
+      temperature_level->add_sample(CurveInterpolator::Sample(180., 273.));
+      temperature_level->add_sample(CurveInterpolator::Sample(300., 300.));
+    }
+
+    snprintf(config_path, sizeof(config_path), "/%s Temperature/Current value SK Path",
+             name.c_str());
+    snprintf(sk_path, sizeof(sk_path), "propulsion.temperature.%s",
+             name.c_str());
+    snprintf(meta_display_name, sizeof(meta_display_name), "%s Temperature value",
+             name.c_str());
+    snprintf(meta_description, sizeof(meta_description), "%s Temperature value",
+             name.c_str());
+    // auto temperature_level_sk_output = new SKOutputFloat(
+    //     sk_path, config_path,
+    //     new SKMetadata("K", meta_display_name, meta_description));
+
+    //snprintf(config_path, sizeof(config_path), "/Temperature %s/Total Volume",
+   //           //name.c_str());
+   // auto temperature_volume = new Linear(kTemperatureDefaultSize, 0, config_path);
+
+    // snprintf(config_path, sizeof(config_path), "/Temperature %s/SK Path",
+    //          name.c_str());
+    // snprintf(sk_path, sizeof(sk_path), "propulsion.temperature.%s.currentVolume",
+    //          name.c_str());
+    // snprintf(meta_display_name, sizeof(meta_display_name), "Tank %s volume",
+    //          name.c_str());
+    // snprintf(meta_description, sizeof(meta_description),
+    //          "Calculated tank %s remaining volume", name.c_str());
+    auto temperature_sk_output = new SKOutputFloat(
+        sk_path, config_path,
+        new SKMetadata("K", meta_display_name, meta_description));
+
+    // sender_resistance->connect_to(sender_resistance_sk_output);
+
+    sender_resistance->connect_to(temperature_level)->connect_to(temperature_sk_output);
+
+    // temperature_level->connect_to(temperature_volume)->connect_to(temperature_volume_sk_output);
+
+    return temperature_level;
+  }

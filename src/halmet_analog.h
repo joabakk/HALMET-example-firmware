@@ -10,4 +10,8 @@ using namespace sensesp;
 
 FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115, int channel, String name);
 
+FloatProducer* ConnectPressureSensor(Adafruit_ADS1115* ads1115, int channel, String name);
+
+FloatProducer* ConnectTemperatureSensor(Adafruit_ADS1115* ads1115, int channel, String name);
+
 #endif
