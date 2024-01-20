@@ -149,31 +149,11 @@ FloatProducer* ConnectPressureSensor(Adafruit_ADS1115* ads1115, int channel,
                                             name.c_str());
                                    snprintf(meta_description, sizeof(meta_description), "%s Pressure value",
                                             name.c_str());
-                                   // auto pressure_level_sk_output = new SKOutputFloat(
-                                   //     sk_path, config_path,
-                                   //     new SKMetadata("Pa", meta_display_name, meta_description));
-
-                                   //snprintf(config_path, sizeof(config_path), "/Pressure %s/Total Volume",
-                                  //           //name.c_str());
-                                  // auto pressure_volume = new Linear(kPressureDefaultSize, 0, config_path);
-
-                                   // snprintf(config_path, sizeof(config_path), "/Pressure %s/SK Path",
-                                   //          name.c_str());
-                                   // snprintf(sk_path, sizeof(sk_path), "propulsion.pressure.%s.currentVolume",
-                                   //          name.c_str());
-                                   // snprintf(meta_display_name, sizeof(meta_display_name), "Tank %s volume",
-                                   //          name.c_str());
-                                   // snprintf(meta_description, sizeof(meta_description),
-                                   //          "Calculated tank %s remaining volume", name.c_str());
                                    auto pressure_sk_output = new SKOutputFloat(
                                        sk_path, config_path,
                                        new SKMetadata("Pa", meta_display_name, meta_description));
 
-                                   // sender_resistance->connect_to(sender_resistance_sk_output);
-
                                    sender_resistance->connect_to(pressure_level)->connect_to(pressure_sk_output);
-
-                                   // pressure_level->connect_to(pressure_volume)->connect_to(pressure_volume_sk_output);
 
                                    return pressure_level;
                                  }
@@ -230,31 +210,13 @@ FloatProducer* ConnectTemperatureSensor(Adafruit_ADS1115* ads1115, int channel,
              name.c_str());
     snprintf(meta_description, sizeof(meta_description), "%s Temperature value",
              name.c_str());
-    // auto temperature_level_sk_output = new SKOutputFloat(
-    //     sk_path, config_path,
-    //     new SKMetadata("K", meta_display_name, meta_description));
 
-    //snprintf(config_path, sizeof(config_path), "/Temperature %s/Total Volume",
-   //           //name.c_str());
-   // auto temperature_volume = new Linear(kTemperatureDefaultSize, 0, config_path);
-
-    // snprintf(config_path, sizeof(config_path), "/Temperature %s/SK Path",
-    //          name.c_str());
-    // snprintf(sk_path, sizeof(sk_path), "propulsion.temperature.%s.currentVolume",
-    //          name.c_str());
-    // snprintf(meta_display_name, sizeof(meta_display_name), "Tank %s volume",
-    //          name.c_str());
-    // snprintf(meta_description, sizeof(meta_description),
-    //          "Calculated tank %s remaining volume", name.c_str());
     auto temperature_sk_output = new SKOutputFloat(
         sk_path, config_path,
         new SKMetadata("K", meta_display_name, meta_description));
 
-    // sender_resistance->connect_to(sender_resistance_sk_output);
-
     sender_resistance->connect_to(temperature_level)->connect_to(temperature_sk_output);
 
-    // temperature_level->connect_to(temperature_volume)->connect_to(temperature_volume_sk_output);
 
     return temperature_level;
   }
