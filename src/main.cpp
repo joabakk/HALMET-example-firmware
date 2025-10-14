@@ -183,6 +183,66 @@ void setup() {
     //     [](float value) { PrintValue(display, 2, "Tank A1", 100 * value); }));
   }
 
+<<<<<<< Updated upstream
+=======
+  // Read the voltage level of analog input A2
+  auto a2_voltage = new ADS1115VoltageInput(ads1115, 1, "/Voltage A2");
+
+  ConfigItem(a2_voltage)
+      ->set_title("Analog Voltage A2")
+      ->set_description("Voltage level of analog input A2")
+      ->set_sort_order(3000);
+
+  a2_voltage->connect_to(new LambdaConsumer<float>(
+      [](float value) { debugD("Voltage A2: %f", value); }));
+  
+  auto a2_oilPressure = new Linear(0.17, 0.0);
+  a2_voltage->connect_to(a2_oilPressure);
+
+  // If you want to output something else than the voltage value,
+  // you can insert a suitable transform here.
+  // For example, to convert the voltage to a distance with a conversion
+  // factor of 0.17 m/V, you could use the following code:
+  // auto a2_distance = new Linear(0.17, 0.0);
+  // a2_voltage->connect_to(a2_distance);
+
+  a2_oilPressure->connect_to(
+      new SKOutputFloat("propulsion.mainEngine.oil.pressure", "Oil pressure",
+                        new SKMetadata("Pa", "Engine oil pressure")));
+  // Example of how to output the distance value to Signal K.
+  // a2_distance->connect_to(
+  //     new SKOutputFloat("sensors.a2.distance", "Analog Distance A2",
+  //                       new SKMetadata("m", "Analog Distance A2")));
+
+  // Read the voltage level of analog input A3
+  auto a3_voltage = new ADS1115VoltageInput(ads1115, 2, "/Voltage A3");
+
+  ConfigItem(a3_voltage)
+      ->set_title("Analog Voltage A3")
+      ->set_description("Voltage level of analog input A3")
+      ->set_sort_order(3000);
+
+  a3_voltage->connect_to(new LambdaConsumer<float>(
+      [](float value) { debugD("Voltage A3: %f", value); }));
+
+  auto a3_waterTemperature = new Linear(0.17, 0.0);
+  a3_voltage->connect_to(a3_waterTemperature);
+
+  // If you want to output something else than the voltage value,
+  // you can insert a suitable transform here.
+  // For example, to convert the voltage to a distance with a conversion
+  // factor of 0.17 m/V, you could use the following code:
+  // auto a2_distance = new Linear(0.17, 0.0);
+  // a2_voltage->connect_to(a2_distance);
+
+  a2_oilPressure->connect_to(
+      new SKOutputFloat("propulsion.mainEngine.water.temperature", "Cooling water temperature",
+                        new SKMetadata("K", "Engine cooling water temperature")));
+  // Example of how to output the distance value to Signal K.
+  // a2_distance->connect_to(
+  //     new SKOutputFloat("sensors.a2.distance", "Analog Distance A2",
+  //                       new SKMetadata("m", "Analog Distance A2")));
+>>>>>>> Stashed changes
   ///////////////////////////////////////////////////////////////////
   // Digital alarm inputs
 
