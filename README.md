@@ -16,6 +16,7 @@ All connections tap existing wires in parallel, so the original gauges and alarm
 - Fit a 1 A inline fuse on the A4 wire, close to the key switch.
 - For D1, connect the pickup wire that is not grounded.
 - Keep the HALMET current source disabled on A2 and A3, since the original gauges are still connected.
+- On HALMET v1.0.0 boards, the D3 and D4 labels on the back-side silkscreen are swapped ([errata](https://docs.hatlabs.fi/halmet/errata/)). Connect D+ to the terminal wired to GPIO 27 (the real D3). This is fixed in v1.0.1.
 
 After flashing, calibrate the oil pressure and coolant temperature curves, the tacho multiplier and the engine hours in the web UI.
 
