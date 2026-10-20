@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="550" viewBox="0 0 680 550" role="img">
+<title>HALMET to Sisu engine wiring</title>
+<desc>Each HALMET terminal connected to its tap point on the engine: A1 fuel tank sender, A2 relay box terminal 7 yellow oil pressure, A3 terminal 9 green coolant temperature, A4 key switch 15 through a 1 A fuse, D1 terminal 4 RPM pickup, D2 alarm relay coil brown, D3 terminal 6 orange D+, GND terminal 10 black, and NMEA 2000 to the backbone.</desc>
+<style>
+  svg { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  .bg { fill: #ffffff; }
+  .board { fill: #f6f5f1; stroke: #b4b2a9; }
+  .pin, .tap { fill: #f1efe8; stroke: #5f5e5a; }
+  .th { font-size: 14px; font-weight: 500; fill: #2c2c2a; }
+  .ts { font-size: 12px; fill: #5f5e5a; }
+  .fuse { fill: none; stroke: #2c2c2a; }
+  .gnd { stroke: #2c2c2a; }
+  @media (prefers-color-scheme: dark) {
+    .bg { fill: #1f1f1e; }
+    .board { fill: #2a2a28; stroke: #5f5e5a; }
+    .pin, .tap { fill: #444441; stroke: #b4b2a9; }
+    .th { fill: #f1efe8; }
+    .ts { fill: #d3d1c7; }
+    .fuse { stroke: #d3d1c7; }
+    .gnd { stroke: #d3d1c7; }
+  }
+</style>
+<rect class="bg" x="0" y="0" width="680" height="550"/>
+<rect class="board" x="40" y="40" width="170" height="458" rx="12" stroke-width="0.5"/>
+<text class="th" x="60" y="66">HALMET</text>
+<g stroke-width="0.5">
+<rect class="pin" x="150" y="86" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="132" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="178" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="224" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="270" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="316" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="362" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="408" width="60" height="28" rx="4"/>
+<rect class="pin" x="150" y="454" width="60" height="28" rx="4"/>
+</g>
+<g text-anchor="middle" dominant-baseline="central">
+<text class="th" x="180" y="100">A1</text>
+<text class="th" x="180" y="146">A2</text>
+<text class="th" x="180" y="192">A3</text>
+<text class="th" x="180" y="238">A4</text>
+<text class="th" x="180" y="284">D1</text>
+<text class="th" x="180" y="330">D2</text>
+<text class="th" x="180" y="376">D3</text>
+<text class="th" x="180" y="422">GND</text>
+<text class="th" x="180" y="468">N2K</text>
+</g>
+<text class="ts" x="60" y="100" dominant-baseline="central">Analog</text>
+<text class="ts" x="60" y="284" dominant-baseline="central">Digital</text>
+<text class="ts" x="60" y="468" dominant-baseline="central">Bus</text>
+<g stroke-width="3">
+<line x1="210" y1="100" x2="400" y2="100" stroke="#888780"/>
+<line x1="210" y1="146" x2="400" y2="146" stroke="#E0BC1A"/>
+<line x1="210" y1="192" x2="400" y2="192" stroke="#3B9C3B"/>
+<line x1="210" y1="238" x2="290" y2="238" stroke="#E24B4A"/>
+<line x1="320" y1="238" x2="400" y2="238" stroke="#E24B4A"/>
+<line x1="210" y1="284" x2="400" y2="284" stroke="#888780" stroke-dasharray="6 4"/>
+<line x1="210" y1="330" x2="400" y2="330" stroke="#8B5A2B"/>
+<line x1="210" y1="376" x2="400" y2="376" stroke="#E8822C"/>
+<line class="gnd" x1="210" y1="422" x2="400" y2="422"/>
+<line x1="210" y1="468" x2="400" y2="468" stroke="#378ADD"/>
+</g>
+<rect class="fuse" x="290" y="230" width="30" height="16" rx="3" stroke-width="1"/>
+<text class="ts" x="305" y="222" text-anchor="middle">1 A fuse</text>
+<g stroke-width="0.5">
+<rect class="tap" x="400" y="81" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="127" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="173" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="219" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="265" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="311" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="357" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="403" width="240" height="38" rx="6"/>
+<rect class="tap" x="400" y="449" width="240" height="38" rx="6"/>
+</g>
+<g dominant-baseline="central">
+<text class="th" x="414" y="92">Fuel tank sender</text><text class="ts" x="414" y="109">Not on the Sisu diagram</text>
+<text class="th" x="414" y="138">Relay box terminal 7</text><text class="ts" x="414" y="155">Yellow 1.5 · oil pressure</text>
+<text class="th" x="414" y="184">Relay box terminal 9</text><text class="ts" x="414" y="201">Green 1.5 · coolant temp</text>
+<text class="th" x="414" y="230">Key switch terminal 15</text><text class="ts" x="414" y="247">Switched + · battery voltage</text>
+<text class="th" x="414" y="276">Relay box terminal 4</text><text class="ts" x="414" y="293">Transparent · RPM pickup</text>
+<text class="th" x="414" y="322">Alarm relay coil (85)</text><text class="ts" x="414" y="339">Brown · common alarm</text>
+<text class="th" x="414" y="368">Relay box terminal 6</text><text class="ts" x="414" y="385">Orange 1 · alternator D+</text>
+<text class="th" x="414" y="414">Relay box terminal 10</text><text class="ts" x="414" y="431">Black · engine ground</text>
+<text class="th" x="414" y="460">NMEA 2000 backbone</text><text class="ts" x="414" y="477">Drop cable · power and data</text>
+</g>
+<text class="ts" x="340" y="528" text-anchor="middle">Wire colour = engine harness colour. Tap in parallel; keep existing wires connected.</text>
+</svg>
