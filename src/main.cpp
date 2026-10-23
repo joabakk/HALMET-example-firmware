@@ -79,6 +79,42 @@ const int kTestOutputPin = GPIO_NUM_33;
 const int kTestOutputFrequency = 380;
 #endif
 
+// Sender voltages below this mean the gauges have no supply (ignition off) or
+// the sender is disconnected. Such readings are sent as null, so Signal K and
+// NMEA 2000 show no value rather than a wrong one.
+const float kMinSenderVoltage = 0.2;
+
+// Pass a calibrated value through, or null if its sender voltage is too low.
+LambdaTransform<float, NullableFloat>* NullWhenUnpowered(
+    FloatProducer* sender_voltage) {
+  return new LambdaTransform<float, NullableFloat>(
+      [sender_voltage](float value) {
+        if (sender_voltage->get() < kMinSenderVoltage) {
+          return NullableFloat(NullableFloat::invalid());
+        }
+        return NullableFloat(value);
+      });
+}
+
+// Limit a curve's output to the range of its samples, so that readings outside
+// the calibrated range (e.g. a disconnected sender) don't extrapolate to
+// nonsense values.
+LambdaTransform<float, float>* ClampToCurve(CurveInterpolator* curve) {
+  return new LambdaTransform<float, float>([curve](float value) {
+    const auto& samples = curve->get_samples();
+    if (samples.empty()) {
+      return value;
+    }
+    float lo = samples.begin()->output_;
+    float hi = lo;
+    for (const auto& sample : samples) {
+      lo = std::min(lo, sample.output_);
+      hi = std::max(hi, sample.output_);
+    }
+    return std::max(lo, std::min(hi, value));
+  });
+}
+
 /////////////////////////////////////////////////////////////////////
 // The setup function performs one-time application initialization.
 void setup() {
@@ -248,31 +284,38 @@ void setup() {
   // EDIT: Placeholder curve (sender voltage -> Pa). Replace with values read
   // off the oil pressure gauge at a few engine speeds. The sender resistance
   // rises with pressure, so the sender voltage rises with pressure too.
-  auto oil_pressure =
+  auto oil_pressure_curve =
       (new CurveInterpolator(nullptr, "/Oil Pressure/Curve"))
           ->set_input_title("Sender voltage (V)")
           ->set_output_title("Oil pressure (Pa)");
 
-  ConfigItem(oil_pressure)
+  ConfigItem(oil_pressure_curve)
       ->set_title("Oil Pressure Curve")
       ->set_description("Sender voltage to oil pressure (Pa). 1 bar = 100000 Pa")
       ->set_sort_order(3101);
 
-  if (oil_pressure->get_samples().empty()) {
-    oil_pressure->clear_samples();
-    oil_pressure->add_sample(CurveInterpolator::Sample(0., 0.));
-    oil_pressure->add_sample(CurveInterpolator::Sample(1., 0.));
-    oil_pressure->add_sample(CurveInterpolator::Sample(8., 500000.));
+  if (oil_pressure_curve->get_samples().empty()) {
+    oil_pressure_curve->clear_samples();
+    oil_pressure_curve->add_sample(CurveInterpolator::Sample(0., 0.));
+    oil_pressure_curve->add_sample(CurveInterpolator::Sample(1., 0.));
+    oil_pressure_curve->add_sample(CurveInterpolator::Sample(8., 500000.));
   }
 
-  a2_voltage->connect_to(oil_pressure);
+  a2_voltage->connect_to(oil_pressure_curve);
+  auto oil_pressure = oil_pressure_curve
+                          ->connect_to(ClampToCurve(oil_pressure_curve))
+                          ->connect_to(NullWhenUnpowered(a2_voltage));
 
-  oil_pressure->connect_to(new SKOutputFloat(
+  oil_pressure->connect_to(new SKOutput<NullableFloat>(
       "propulsion.main.oilPressure", "/Oil Pressure/SK Path",
       new SKMetadata("Pa", "Oil pressure")));
-  oil_pressure->connect_to(new LambdaConsumer<float>(
-      [engine_dynamic_sender](float value) {
-        engine_dynamic_sender->oil_pressure_->set(value);
+  // When the value is null, nothing is set and the NMEA 2000 field expires to
+  // "not available" after a few seconds.
+  oil_pressure->connect_to(new LambdaConsumer<NullableFloat>(
+      [engine_dynamic_sender](NullableFloat value) {
+        if (value.is_valid()) {
+          engine_dynamic_sender->oil_pressure_->set(value.value());
+        }
       }));
 
   // A3: Coolant temperature
@@ -293,32 +336,38 @@ void setup() {
   // EDIT: Placeholder curve (sender voltage -> K). Replace with values read
   // off the temperature gauge from cold to fully warm. The sender resistance
   // falls with temperature, so the sender voltage falls as the engine warms up.
-  auto coolant_temperature =
+  auto coolant_temperature_curve =
       (new CurveInterpolator(nullptr, "/Coolant Temperature/Curve"))
           ->set_input_title("Sender voltage (V)")
           ->set_output_title("Coolant temperature (K)");
 
-  ConfigItem(coolant_temperature)
+  ConfigItem(coolant_temperature_curve)
       ->set_title("Coolant Temperature Curve")
       ->set_description(
           "Sender voltage to coolant temperature (K). K = degC + 273.15")
       ->set_sort_order(3111);
 
-  if (coolant_temperature->get_samples().empty()) {
-    coolant_temperature->clear_samples();
-    coolant_temperature->add_sample(CurveInterpolator::Sample(1., 393.15));
-    coolant_temperature->add_sample(CurveInterpolator::Sample(4., 353.15));
-    coolant_temperature->add_sample(CurveInterpolator::Sample(8., 313.15));
+  if (coolant_temperature_curve->get_samples().empty()) {
+    coolant_temperature_curve->clear_samples();
+    coolant_temperature_curve->add_sample(CurveInterpolator::Sample(1., 393.15));
+    coolant_temperature_curve->add_sample(CurveInterpolator::Sample(4., 353.15));
+    coolant_temperature_curve->add_sample(CurveInterpolator::Sample(8., 313.15));
   }
 
-  a3_voltage->connect_to(coolant_temperature);
+  a3_voltage->connect_to(coolant_temperature_curve);
+  auto coolant_temperature =
+      coolant_temperature_curve
+          ->connect_to(ClampToCurve(coolant_temperature_curve))
+          ->connect_to(NullWhenUnpowered(a3_voltage));
 
-  coolant_temperature->connect_to(new SKOutputFloat(
+  coolant_temperature->connect_to(new SKOutput<NullableFloat>(
       "propulsion.main.coolantTemperature", "/Coolant Temperature/SK Path",
       new SKMetadata("K", "Coolant temperature")));
-  coolant_temperature->connect_to(new LambdaConsumer<float>(
-      [engine_dynamic_sender](float value) {
-        engine_dynamic_sender->temperature_->set(value);
+  coolant_temperature->connect_to(new LambdaConsumer<NullableFloat>(
+      [engine_dynamic_sender](NullableFloat value) {
+        if (value.is_valid()) {
+          engine_dynamic_sender->temperature_->set(value.value());
+        }
       }));
 
   // A4: Battery voltage, taken from the key switch terminal 15 (switched +).
@@ -341,8 +390,14 @@ void setup() {
       }));
 
   if (display_present) {
-    coolant_temperature->connect_to(new LambdaConsumer<float>(
-        [](float value) { PrintValue(display, 5, "Temp C", value - 273.15); }));
+    coolant_temperature->connect_to(
+        new LambdaConsumer<NullableFloat>([](NullableFloat value) {
+          if (value.is_valid()) {
+            PrintValue(display, 5, "Temp C", value.value() - 273.15);
+          } else {
+            PrintValue(display, 5, "Temp C", String("--"));
+          }
+        }));
   }
 
   ///////////////////////////////////////////////////////////////////
@@ -377,8 +432,10 @@ void setup() {
   // relay coil). Lights for alternator, low oil pressure, high coolant
   // temperature and exhaust temperature all end up on this one signal.
 
-  // EDIT: Set to true if the input reads low while the alarm is active.
-  const bool kCommonAlarmActiveLow = false;
+  // HALMET digital inputs read high when nothing is connected, so an active
+  // (powered) signal reads low. EDIT: Set to false if the alarm shows as
+  // active while the engine alarm unit is quiet.
+  const bool kCommonAlarmActiveLow = true;
 
   auto alarm_d2_input = new DigitalInputState(kDigitalInputPin2, INPUT, 100);
   auto common_alarm = alarm_d2_input->connect_to(new LambdaTransform<bool, bool>(
@@ -398,8 +455,10 @@ void setup() {
   // D3: Alternator D+. High while the alternator is charging, which also
   // means the engine is running.
 
-  // EDIT: Set to true if the input reads low while D+ is high.
-  const bool kDPlusActiveLow = false;
+  // HALMET digital inputs read high when nothing is connected, so D+ at
+  // charging voltage reads low. EDIT: Set to false if alternatorCharging is
+  // true while the engine is stopped.
+  const bool kDPlusActiveLow = true;
 
   auto d3_input = new DigitalInputState(kDigitalInputPin3, INPUT, 100);
   auto charging = d3_input->connect_to(new LambdaTransform<bool, bool>(
