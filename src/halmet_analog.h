@@ -4,6 +4,7 @@
 #include <Adafruit_ADS1X15.h>
 
 #include "sensesp/sensors/sensor.h"
+#include "sensesp/types/nullable.h"
 #include "sensesp_base_app.h"
 
 namespace halmet {
@@ -11,7 +12,7 @@ namespace halmet {
 // HALMET voltage divider scale factor
 const float kVoltageDividerScale = 33.3 / 3.3;
 
-sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
+sensesp::ValueProducer<sensesp::NullableFloat>* ConnectTankSender(Adafruit_ADS1115* ads1115,
                                           int channel, const String& name,
                                           const String& sk_id, int sort_order,
                                           bool enable_signalk_output = true);

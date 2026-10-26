@@ -4,6 +4,7 @@
 #include "sensesp/signalk/signalk_output.h"
 #include "sensesp/system/valueproducer.h"
 #include "sensesp/transforms/curveinterpolator.h"
+#include "sensesp/transforms/lambda_transform.h"
 #include "sensesp/transforms/linear.h"
 #include "sensesp/ui/config_item.h"
 
@@ -15,7 +16,27 @@ const float kMeasurementCurrent = 0.01;
 // Default fuel tank size, in m3
 const float kTankDefaultSize = 120. / 1000;
 
-sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
+// Sender resistances outside this range mean there is no usable signal: below
+// it the input is shorted or the measurement current is off, above it the
+// sender is disconnected (open circuit). Such readings are sent as null.
+const float kMinSenderResistance = 1.0;    // ohms
+const float kMaxSenderResistance = 310.0;  // ohms
+
+// Pass a value through, or null if the sender resistance is out of range.
+static sensesp::LambdaTransform<float, sensesp::NullableFloat>*
+NullWhenNoSignal(sensesp::FloatProducer* sender_resistance) {
+  return new sensesp::LambdaTransform<float, sensesp::NullableFloat>(
+      [sender_resistance](float value) {
+        float resistance = sender_resistance->get();
+        if (resistance < kMinSenderResistance ||
+            resistance > kMaxSenderResistance) {
+          return sensesp::NullableFloat(sensesp::NullableFloat::invalid());
+        }
+        return sensesp::NullableFloat(value);
+      });
+}
+
+sensesp::ValueProducer<sensesp::NullableFloat>* ConnectTankSender(Adafruit_ADS1115* ads1115,
                                           int channel, const String& name,
                                           const String& sk_id, int sort_order,
                                           bool enable_signalk_output) {
@@ -51,7 +72,7 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
     snprintf(resistance_meta_description, sizeof(resistance_meta_description),
              "Measured tank %s sender resistance", name.c_str());
 
-    auto sender_resistance_sk_output = new sensesp::SKOutputFloat(
+    auto sender_resistance_sk_output = new sensesp::SKOutput<sensesp::NullableFloat>(
         resistance_sk_path, resistance_sk_config_path,
         new sensesp::SKMetadata("ohm", resistance_meta_display_name,
                                 resistance_meta_description));
@@ -61,7 +82,8 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
         ->set_description(resistance_description)
         ->set_sort_order(sort_order);
 
-    sender_resistance->connect_to(sender_resistance_sk_output);
+    sender_resistance->connect_to(NullWhenNoSignal(sender_resistance))
+        ->connect_to(sender_resistance_sk_output);
   }
 
   // Configure the piecewise linear interpolator for the tank level (ratio)
@@ -94,6 +116,8 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
   }
 
   sender_resistance->connect_to(tank_level);
+  auto valid_tank_level =
+      tank_level->connect_to(NullWhenNoSignal(sender_resistance));
 
   if (enable_signalk_output) {
     char level_config_path[80];
@@ -115,7 +139,7 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
     snprintf(level_meta_description, sizeof(level_meta_description),
              "Tank %s level", name.c_str());
 
-    auto tank_level_sk_output = new sensesp::SKOutputFloat(
+    auto tank_level_sk_output = new sensesp::SKOutput<sensesp::NullableFloat>(
         level_sk_path, level_config_path,
         new sensesp::SKMetadata("ratio", level_meta_display_name,
                                 level_meta_description));
@@ -125,7 +149,7 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
         ->set_description(level_description)
         ->set_sort_order(sort_order + 2);
 
-    tank_level->connect_to(tank_level_sk_output);
+    valid_tank_level->connect_to(tank_level_sk_output);
   }
 
   // Configure the linear transform for the tank volume
@@ -169,7 +193,7 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
     snprintf(volume_meta_description, sizeof(volume_meta_description),
              "Calculated tank %s remaining volume", name.c_str());
 
-    auto tank_volume_sk_output = new sensesp::SKOutputFloat(
+    auto tank_volume_sk_output = new sensesp::SKOutput<sensesp::NullableFloat>(
         volume_sk_path, volume_sk_config_path,
         new sensesp::SKMetadata("m3", volume_meta_display_name,
                                 volume_meta_description));
@@ -179,10 +203,11 @@ sensesp::FloatProducer* ConnectTankSender(Adafruit_ADS1115* ads1115,
         ->set_description(volume_description)
         ->set_sort_order(sort_order + 4);
 
-    tank_volume->connect_to(tank_volume_sk_output);
+    tank_volume->connect_to(NullWhenNoSignal(sender_resistance))
+        ->connect_to(tank_volume_sk_output);
   }
 
-  return tank_level;
+  return valid_tank_level;
 }
 
 }  // namespace halmet

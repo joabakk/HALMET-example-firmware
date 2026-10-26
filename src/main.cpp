@@ -80,8 +80,9 @@ const int kTestOutputFrequency = 380;
 #endif
 
 // Sender voltages below this mean the gauges have no supply (ignition off) or
-// the sender is disconnected. Such readings are sent as null, so Signal K and
-// NMEA 2000 show no value rather than a wrong one.
+// the sender is disconnected. The sender voltage and the values calculated from
+// it are then sent as null, so Signal K and NMEA 2000 show no value rather than
+// a wrong one.
 const float kMinSenderVoltage = 0.2;
 
 // Pass a calibrated value through, or null if its sender voltage is too low.
@@ -130,6 +131,12 @@ void setup() {
 
   // Construct the global SensESPApp() object
   BUILDER_CLASS builder;
+
+  // OTA updates are enabled when ota_password is set in secrets.ini.
+  if (strlen(OTA_PASSWORD) > 0) {
+    builder.enable_ota(OTA_PASSWORD);
+  }
+
   sensesp_app = (&builder)
                     // EDIT: Set a custom hostname for the app.
                     ->set_hostname("halmet")
@@ -137,8 +144,6 @@ void setup() {
                     // settings. This is normally not needed.
                     //->set_wifi("My WiFi SSID", "my_wifi_password")
                     //->set_sk_server("192.168.10.3", 80)
-                    // EDIT: Enable OTA updates with a password.
-                    //->enable_ota("my_ota_password")
                     ->get_app();
 
   // initialize the I2C bus
@@ -232,12 +237,25 @@ void setup() {
       ->set_description("NMEA 2000 tank sender for tank A1")
       ->set_sort_order(3005);
 
-  tank_a1_volume->connect_to(&(tank_a1_sender->tank_level_));
+  // When the level is null, nothing is set and the NMEA 2000 tank level
+  // expires to "not available".
+  tank_a1_volume->connect_to(
+      new LambdaConsumer<NullableFloat>([tank_a1_sender](NullableFloat value) {
+        if (value.is_valid()) {
+          tank_a1_sender->tank_level_.set(value.value());
+        }
+      }));
 
   if (display_present) {
     // EDIT: Duplicate the lines below to make the display show all your tanks.
-    tank_a1_volume->connect_to(new LambdaConsumer<float>(
-        [](float value) { PrintValue(display, 2, "Tank A1", 100 * value); }));
+    tank_a1_volume->connect_to(
+        new LambdaConsumer<NullableFloat>([](NullableFloat value) {
+          if (value.is_valid()) {
+            PrintValue(display, 2, "Tank A1", 100 * value.value());
+          } else {
+            PrintValue(display, 2, "Tank A1", String("--"));
+          }
+        }));
   }
 
   ///////////////////////////////////////////////////////////////////
@@ -277,7 +295,8 @@ void setup() {
       ->set_description("Voltage on the oil pressure sender wire (A2)")
       ->set_sort_order(3100);
 
-  a2_voltage->connect_to(new SKOutputFloat(
+  a2_voltage->connect_to(NullWhenUnpowered(a2_voltage))
+      ->connect_to(new SKOutput<NullableFloat>(
       "propulsion.main.oilPressureSenderVoltage", "/Oil Pressure/Voltage SK Path",
       new SKMetadata("V", "Oil pressure sender voltage")));
 
@@ -328,7 +347,8 @@ void setup() {
       ->set_description("Voltage on the coolant temperature sender wire (A3)")
       ->set_sort_order(3110);
 
-  a3_voltage->connect_to(new SKOutputFloat(
+  a3_voltage->connect_to(NullWhenUnpowered(a3_voltage))
+      ->connect_to(new SKOutput<NullableFloat>(
       "propulsion.main.coolantTemperatureSenderVoltage",
       "/Coolant Temperature/Voltage SK Path",
       new SKMetadata("V", "Coolant temperature sender voltage")));
